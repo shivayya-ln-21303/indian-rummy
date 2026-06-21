@@ -9,11 +9,11 @@ export default function JokerStatus() {
   return (
     <div className="joker-status">
       <div className={`joker-badge${unlocked ? ' active' : ''}`}>
-        {unlocked ? '🃏 Joker Active' : '🃏 Locked'}
+        {unlocked ? '🃏 జోకర్ చేతన్నది' : '🔒 జోకర్ లాక్'}
       </div>
       {unlocked && (
-        <div style={{ fontSize: '0.55rem', color: 'rgba(255,215,0,0.7)', textAlign: 'center', marginTop: 2 }}>
-          Wild card enabled
+        <div style={{ fontSize: '0.58rem', color: 'rgba(255,215,0,0.75)', textAlign: 'center', marginTop: 2 }}>
+          అడవి పేక వాడవచ్చు
         </div>
       )}
     </div>

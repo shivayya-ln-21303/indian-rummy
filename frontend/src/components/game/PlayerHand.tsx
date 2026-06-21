@@ -20,13 +20,8 @@ export default function PlayerHand() {
   const hasDrawn  = gameState.myCards.length === 14;
   const myCards   = gameState.myCards;
 
-  // Track which cards are already in groups
   const groupedCardIds = new Set(pendingGroups.flat().map((c) => c.cardId));
 
-  // Build ungrouped hand cards (those not yet placed in a group)
-  const ungroupedCards = myCards.filter((c) => !groupedCardIds.has(c.cardId));
-
-  // Add selected cards to a new group
   const addSelectionToGroup = () => {
     const selected = myCards.filter((c) => selectedCards.includes(c.cardId));
     if (selected.length < 3) return;
@@ -47,12 +42,10 @@ export default function PlayerHand() {
   };
 
   const handleDeclareWin = () => {
-    // All 13 cards must be in groups covering all cards
     const allGroupCards = pendingGroups.flat();
     if (allGroupCards.length === 13) {
       declareWin(pendingGroups);
     } else if (hasDrawn && allGroupCards.length === 13) {
-      // 14th card is the one not in any group
       const ungrouped14 = myCards.find((c) => !allGroupCards.find((g) => g.cardId === c.cardId));
       declareWin(pendingGroups, ungrouped14?.cardId);
     }
@@ -61,7 +54,6 @@ export default function PlayerHand() {
   const canDeclareWin = () => {
     const allGroupCards = pendingGroups.flat();
     const totalNeeded = hasDrawn ? 14 : 13;
-    // Need groups covering 13 cards, plus optionally 1 discard card
     return (
       pendingGroups.length === 4 &&
       (allGroupCards.length === 13 || allGroupCards.length === totalNeeded - 1)
@@ -80,8 +72,9 @@ export default function PlayerHand() {
                 <CardComponent key={card.cardId} card={card} inGroup />
               ))}
               <button
-                style={{ background: 'none', border: 'none', color: '#e63946', fontSize: '1rem', cursor: 'pointer', marginLeft: 4 }}
+                style={{ background: 'none', border: 'none', color: '#e63946', fontSize: '1.2rem', cursor: 'pointer', marginLeft: 6, padding: '0 4px' }}
                 onClick={() => removeGroup(gi)}
+                title="సమూహం తొలగించు"
               >
                 ✕
               </button>
@@ -90,31 +83,48 @@ export default function PlayerHand() {
         </div>
       )}
 
-      {/* Action row for selected cards */}
+      {/* Selection action bar */}
       {selectedCards.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, padding: '4px 12px', flexWrap: 'wrap' }}>
+        <div className="selection-bar">
           {selectedCards.length >= 3 && (
             <button className="btn btn-primary btn-sm" onClick={addSelectionToGroup}>
-              Group ({selectedCards.length})
+              సమూహం ({selectedCards.length}) చేయండి
             </button>
           )}
           {selectedCards.length === 1 && isMyTurn && hasDrawn && (
             <button className="btn btn-danger btn-sm" onClick={handleDiscardSelected}>
-              Discard
+              🗑️ పేక వేయండి
             </button>
           )}
           <button className="btn btn-secondary btn-sm" onClick={() => useGameStore.getState().clearSelection()}>
-            Clear
+            రద్దు
           </button>
           {canDeclareWin() && (
-            <button className="btn btn-primary btn-sm" style={{ background: '#ffd700', color: '#000' }} onClick={handleDeclareWin}>
-              🏆 Declare Win
+            <button
+              className="btn btn-primary btn-sm"
+              style={{ background: 'linear-gradient(135deg,#ffd700,#c8a200)', color: '#000' }}
+              onClick={handleDeclareWin}
+            >
+              🏆 గెలుపు ప్రకటించండి
             </button>
           )}
         </div>
       )}
 
-      <div className="my-label">YOUR HAND ({myCards.length})</div>
+      {/* Declare win button when all groups ready and nothing selected */}
+      {canDeclareWin() && selectedCards.length === 0 && (
+        <div style={{ display: 'flex', padding: '3px 12px' }}>
+          <button
+            className="btn btn-primary btn-sm"
+            style={{ background: 'linear-gradient(135deg,#ffd700,#c8a200)', color: '#000', flex: 1 }}
+            onClick={handleDeclareWin}
+          >
+            🏆 గెలుపు ప్రకటించండి!
+          </button>
+        </div>
+      )}
+
+      <div className="my-label">మీ పేకలు ({myCards.length})</div>
       <div className="hand-scroll">
         {myCards.map((card) => (
           <CardComponent
@@ -129,4 +139,3 @@ export default function PlayerHand() {
     </div>
   );
 }
-

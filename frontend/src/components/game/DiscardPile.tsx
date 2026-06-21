@@ -12,10 +12,9 @@ export default function DiscardPile() {
 
   return (
     <div
-      className="discard-pile"
+      className={`discard-pile${canDraw ? ' can-draw' : ''}`}
       onClick={canDraw ? drawFromDiscard : undefined}
-      title={canDraw ? 'Take discard' : ''}
-      style={{ opacity: canDraw ? 1 : 0.7 }}
+      style={{ opacity: canDraw ? 1 : 0.75 }}
     >
       {topDiscard ? (
         <CardComponent
@@ -23,9 +22,9 @@ export default function DiscardPile() {
           onClick={canDraw ? drawFromDiscard : undefined}
         />
       ) : (
-        <div className="discard-empty">Empty</div>
+        <div className="discard-empty">ఖాళీ</div>
       )}
-      <div className="pile-label">DISCARD</div>
+      <div className="pile-label">🗑️ పడేసిన పేక</div>
     </div>
   );
 }

@@ -1,5 +1,4 @@
 import { useGameStore } from '../../store/gameStore';
-import CardComponent from './CardComponent';
 
 export default function DrawPile() {
   const { gameState, playerId, drawFromDeck } = useGameStore();
@@ -12,18 +11,17 @@ export default function DrawPile() {
 
   return (
     <div
-      className="draw-pile"
+      className={`draw-pile${canDraw ? ' can-draw' : ''}`}
       onClick={canDraw ? drawFromDeck : undefined}
-      style={{ opacity: canDraw ? 1 : 0.6 }}
-      title={canDraw ? 'Draw from deck' : ''}
+      style={{ opacity: canDraw ? 1 : 0.55 }}
     >
       <div className="draw-pile-stack">
         {deckSize > 2 && <div className="draw-pile-card" />}
         {deckSize > 1 && <div className="draw-pile-card" />}
-        <div className="draw-pile-card" style={canDraw ? { cursor: 'pointer', transform: 'translate(0,0) scale(1.02)', transition: 'transform 0.15s' } : {}} />
+        <div className="draw-pile-card" />
       </div>
-      <div className="pile-label">DECK</div>
-      <div className="pile-count">{deckSize} left</div>
+      <div className="pile-label">🂠 గుంపు</div>
+      <div className="pile-count">{deckSize} మిగిలినవి</div>
     </div>
   );
 }

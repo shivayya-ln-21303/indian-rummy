@@ -11,16 +11,16 @@ export default function LobbyScreen() {
       {errorMessage && <ErrorBanner message={errorMessage} onClose={clearError} />}
 
       <div className="lobby-logo">🃏</div>
-      <h1>Indian Rummy</h1>
-      <p style={{ opacity: 0.7, fontSize: '0.85rem' }}>4-Player Multiplayer Card Game</p>
+      <h1>రమ్మీ పేకాట</h1>
+      <p style={{ opacity: 0.75, fontSize: '0.95rem', fontWeight: 600 }}>4 మంది ఆడే పేకాట ఆట</p>
 
       {/* Name input */}
       <div className="lobby-card">
-        <h2>Your Name</h2>
+        <h2>మీ పేరు</h2>
         <input
           className="input"
           type="text"
-          placeholder="Enter your name…"
+          placeholder="మీ పేరు టైప్ చేయండి…"
           maxLength={20}
           value={playerName}
           onChange={(e) => setPlayerName(e.target.value)}
@@ -30,47 +30,47 @@ export default function LobbyScreen() {
 
       {/* Create room */}
       <div className="lobby-card">
-        <h2>Create Room</h2>
-        <p style={{ opacity: 0.7, fontSize: '0.8rem' }}>
-          Start a new game. Share the code with friends.
+        <h2>🎮 గది తయారు చేయండి</h2>
+        <p style={{ opacity: 0.72, fontSize: '0.88rem' }}>
+          కొత్త ఆట మొదలుపెట్టండి. కోడ్ స్నేహితులకు పంచండి.
         </p>
         <button className="btn btn-primary" onClick={createRoom} disabled={!playerName.trim()}>
-          + Create Room
+          + గది తయారు చేయండి
         </button>
         {roomCode && (
           <div style={{ textAlign: 'center', marginTop: 8 }}>
-            <p style={{ fontSize: '0.75rem', opacity: 0.7 }}>Share this code:</p>
-            <div className="room-code-display" style={{ fontSize: '1.8rem', padding: '10px 20px' }}>
+            <p style={{ fontSize: '0.8rem', opacity: 0.75 }}>ఈ కోడ్ పంచుకోండి:</p>
+            <div className="room-code-display" style={{ fontSize: '1.9rem', padding: '10px 22px', marginTop: 6 }}>
               {roomCode}
             </div>
-            <p style={{ fontSize: '0.7rem', opacity: 0.6, marginTop: 6 }}>
-              Waiting for 3 more players…
+            <p style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: 8 }}>
+              ఇంకా 3 మంది కోసం వేచి ఉంది...
             </p>
           </div>
         )}
       </div>
 
-      <div className="divider">or</div>
+      <div className="divider">లేదా</div>
 
       {/* Join room */}
       <div className="lobby-card">
-        <h2>Join Room</h2>
+        <h2>🚪 గదిలో చేరండి</h2>
         <input
           className="input"
           type="text"
-          placeholder="Enter room code (e.g. AB12CD)"
+          placeholder="గది కోడ్ వేయండి (ఉదా: AB12CD)"
           maxLength={6}
           value={joinCode}
           onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
           onKeyDown={(e) => e.key === 'Enter' && joinCode.length === 6 && joinRoom(joinCode)}
-          style={{ letterSpacing: '4px', textTransform: 'uppercase' }}
+          style={{ letterSpacing: '5px', textTransform: 'uppercase', fontFamily: 'monospace', fontSize: '1.2rem' }}
         />
         <button
-          className="btn btn-secondary"
+          className="btn btn-green"
           onClick={() => joinRoom(joinCode)}
           disabled={!playerName.trim() || joinCode.length !== 6}
         >
-          Join Room
+          గదిలో చేరండి →
         </button>
       </div>
     </div>

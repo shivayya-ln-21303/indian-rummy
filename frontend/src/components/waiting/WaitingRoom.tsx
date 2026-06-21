@@ -7,20 +7,23 @@ export default function WaitingRoom() {
   const seats = Array.from({ length: 4 }, (_, i) => players[i] ?? null);
 
   const copyCode = () => {
-    if (roomCode) navigator.clipboard.writeText(roomCode).catch(() => {});
+    const code = gameState?.roomCode ?? roomCode ?? '';
+    if (code) {
+      navigator.clipboard.writeText(code).catch(() => {});
+    }
   };
 
   return (
     <div className="waiting">
-      <div style={{ fontSize: '48px' }}>🃏</div>
-      <h2>Waiting for Players</h2>
+      <div style={{ fontSize: '54px' }}>🃏</div>
+      <h2>ఆటగాళ్ళ కోసం వేచి ఉంది</h2>
 
       <div style={{ textAlign: 'center' }}>
-        <p style={{ fontSize: '0.75rem', opacity: 0.7, marginBottom: 6 }}>Room Code</p>
+        <p style={{ fontSize: '0.82rem', opacity: 0.75, marginBottom: 8, fontWeight: 600 }}>గది కోడ్</p>
         <div className="room-code-display" onClick={copyCode} style={{ cursor: 'pointer' }}>
           {gameState?.roomCode ?? roomCode}
         </div>
-        <p style={{ fontSize: '0.65rem', opacity: 0.5, marginTop: 6 }}>Tap to copy</p>
+        <p style={{ fontSize: '0.72rem', opacity: 0.55, marginTop: 8 }}>👆 నొక్కితే కాపీ అవుతుంది</p>
       </div>
 
       <div className="waiting-seats">
@@ -28,29 +31,29 @@ export default function WaitingRoom() {
           <div key={i} className={`seat ${player ? 'filled' : ''}`}>
             {player ? (
               <>
-                <div style={{ fontSize: '20px' }}>
-                  {player.playerId === playerId ? '👤' : '🙂'}
+                <div style={{ fontSize: '24px' }}>
+                  {player.playerId === playerId ? '🙋' : '🙂'}
                 </div>
                 <div className="seat-name">{player.playerName}</div>
                 {player.playerId === playerId && (
-                  <div style={{ fontSize: '0.6rem', color: '#ffd700' }}>You</div>
+                  <div style={{ fontSize: '0.65rem', color: '#ffd700', fontWeight: 700 }}>మీరు</div>
                 )}
               </>
             ) : (
               <>
-                <div style={{ fontSize: '20px', opacity: 0.3 }}>👤</div>
-                <div className="seat-empty pulse">Waiting…</div>
+                <div style={{ fontSize: '24px', opacity: 0.3 }}>👤</div>
+                <div className="seat-empty pulse">వేచి ఉంది...</div>
               </>
             )}
           </div>
         ))}
       </div>
 
-      <p style={{ fontSize: '0.8rem', opacity: 0.7 }}>
-        {players.length}/4 players joined
+      <p style={{ fontSize: '0.9rem', opacity: 0.75, fontWeight: 600 }}>
+        {players.length}/4 మంది చేరారు
       </p>
-      <p style={{ fontSize: '0.75rem', opacity: 0.5, textAlign: 'center', maxWidth: 280 }}>
-        Game starts automatically when all 4 players join
+      <p style={{ fontSize: '0.82rem', opacity: 0.55, textAlign: 'center', maxWidth: 300, lineHeight: 1.5 }}>
+        4 మంది వస్తే ఆట మొదలవుతుంది
       </p>
     </div>
   );

@@ -18,9 +18,9 @@ export default function App() {
       return (
         <div className="splash">
           <div className="splash-logo">🃏</div>
-          <h1>Indian Rummy</h1>
+          <h1>రమ్మీ పేకాట</h1>
           <p className="connecting-text">
-            {connectionStatus === 'connecting' ? 'Connecting…' : 'Reconnecting…'}
+            {connectionStatus === 'connecting' ? 'అనుసంధానం అవుతోంది…' : 'మళ్ళీ అనుసంధానం అవుతోంది…'}
           </p>
         </div>
       );

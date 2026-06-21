@@ -161,7 +161,7 @@ function registerHandlers(
         gameState: d.gameState ?? get().gameState,
       });
     } else {
-      set({ notification: `${d.playerName} joined (${d.playerCount}/4)` });
+    set({ notification: `${d.playerName} చేరారు (${d.playerCount}/4)` });
     }
   });
 
@@ -173,7 +173,7 @@ function registerHandlers(
 
   wsService.on('PLAYER_RECONNECTED', (res: WsResponse) => {
     const d = res.data as { playerName: string };
-    set({ notification: `${d.playerName} reconnected` });
+    set({ notification: `${d.playerName} మళ్ళీ చేరారు` });
   });
 
   wsService.on('PLAYER_DISCONNECTED', (res: WsResponse) => {
@@ -181,7 +181,7 @@ function registerHandlers(
     if (d.players && get().gameState) {
       set({ gameState: { ...get().gameState!, players: d.players } });
     }
-    set({ notification: 'A player disconnected' });
+    set({ notification: 'ఒక ఆటగాడు విడిపోయాడు' });
   });
 
   wsService.on('GAME_STARTED', (res: WsResponse) => {
@@ -190,10 +190,10 @@ function registerHandlers(
     if (gs) {
       set({
         gameState: { ...gs, status: 'DEALING', players: d.players ?? gs.players },
-        notification: '🃏 Game starting — dealing cards!',
+        notification: '🃏 ఆట మొదలవుతోంది — పేకలు పంచుతున్నాం!',
       });
     } else {
-      set({ notification: '🃏 Game starting — dealing cards!' });
+      set({ notification: '🃏 ఆట మొదలవుతోంది — పేకలు పంచుతున్నాం!' });
     }
   });
 
@@ -263,7 +263,7 @@ function registerHandlers(
     if (gs) {
       set({
         gameState:    { ...gs, jokerUnlocked: true, status: 'JOKER_UNLOCKED' },
-        notification: '🃏 Joker Unlocked! The wild card is now active.',
+        notification: '🃏 జోకర్ అన్‌లాక్! అడవి పేక వాడవచ్చు.',
       });
     }
   });
@@ -278,7 +278,7 @@ function registerHandlers(
   });
 
   wsService.on('TURN_TIMEOUT', (res: WsResponse) => {
-    set({ notification: 'Turn timed out — auto skip!' });
+    set({ notification: 'సమయం అయిపోయింది — తదుపరి వంతు!' });
   });
 
   wsService.on('CARDS_REARRANGED', () => {
