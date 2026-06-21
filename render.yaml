@@ -1,0 +1,35 @@
+# render.yaml — Render Blueprint
+# Deploys the entire app as ONE web service (backend + bundled React frontend)
+# No Docker required.
+#
+# How it works:
+#   1. Maven builds the Spring Boot JAR
+#   2. During build, the -Pbuild-frontend profile also builds the React app
+#      and packages it inside the JAR under /static
+#   3. Spring Boot serves the React app at /  and the API at /api/
+#   4. WebSocket is at /ws/game  (same origin — no CORS issues)
+
+services:
+  - type: web
+    name: indian-rummy
+    runtime: java                           # Render native Java runtime
+    plan: free                              # free tier (change to starter for always-on)
+    region: singapore                       # pick closest to your users
+
+    buildCommand: >
+      ./mvnw clean package -Pbuild-frontend -DskipTests
+
+    startCommand: >
+      java -Dserver.port=$PORT $JAVA_OPTS -jar target/indian-rummy-1.0.0.jar
+
+    envVars:
+      - key: JAVA_VERSION
+        value: "21"
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: JAVA_OPTS
+        value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75 -Djava.security.egd=file:/dev/./urandom"
+
+    # Health check so Render knows when the app is ready
+    healthCheckPath: /api/health
+

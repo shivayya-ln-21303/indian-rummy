@@ -1,0 +1,67 @@
+version: "3.9"
+
+services:
+  # ----------------------------------------------------------------
+  # Spring Boot backend
+  # ----------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rummy-backend
+    restart: unless-stopped
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75
+    ports:
+      - "8080:8080"       # expose directly for local testing
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - rummy-net
+
+  # ----------------------------------------------------------------
+  # React frontend (served by its own Nginx)
+  # ----------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: rummy-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"         # expose for local testing
+    depends_on:
+      - backend
+    networks:
+      - rummy-net
+
+  # ----------------------------------------------------------------
+  # Nginx reverse proxy (faces the internet)
+  # Routes /ws/* and /api/* → backend
+  # Everything else       → frontend
+  # ----------------------------------------------------------------
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: rummy-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro        # TLS certs (optional)
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - rummy-net
+
+networks:
+  rummy-net:
+    driver: bridge
+
