@@ -112,6 +112,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             case "CREATE_ROOM"        -> handleCreateRoom(session, msg);
             case "JOIN_ROOM"          -> handleJoinRoom(session, msg);
             case "RECONNECT"          -> handleReconnect(session, msg);
+            case "START_GAME"         -> handleStartGame(session);
             case "DRAW_CARD"          -> handleDrawFromDeck(session);
             case "DRAW_FROM_DISCARD"  -> handleDrawFromDiscard(session);
             case "DISCARD_CARD"       -> handleDiscard(session, msg);
@@ -133,9 +134,11 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         Player   player = room.getPlayers().get(0);
 
         send(session, WebSocketResponse.ok("ROOM_CREATED", Map.of(
-                "roomCode", room.getRoomCode(),
-                "roomId",   room.getRoomId(),
-                "playerId", player.getPlayerId()
+                "roomCode",  room.getRoomCode(),
+                "roomId",    room.getRoomId(),
+                "playerId",  player.getPlayerId(),
+                "creatorId", room.getCreatorId(),
+                "gameState", buildState(room, player)
         )));
     }
 
@@ -151,6 +154,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                 "playerId",   player.getPlayerId(),
                 "roomCode",   room.getRoomCode(),
                 "playerName", player.getPlayerName(),
+                "creatorId",  room.getCreatorId(),
                 "gameState",  buildState(room, player)
         )));
 
@@ -158,13 +162,11 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         broadcastExcept(room, session.getId(),
                 WebSocketResponse.ok("PLAYER_JOINED", Map.of(
                         "playerName",  player.getPlayerName(),
-                        "playerCount", room.getPlayers().size()
+                        "playerCount", room.getPlayers().size(),
+                        "creatorId",   room.getCreatorId(),
+                        "players",     buildSummaries(room, null)
                 )));
-
-        // Auto-start when room is full
-        if (room.isFull() && room.getStatus() == RoomStatus.WAITING_FOR_PLAYERS) {
-            startGame(room);
-        }
+        // NOTE: game no longer auto-starts — creator must send START_GAME
     }
 
     private void handleReconnect(WebSocketSession session, WebSocketMessage msg) throws Exception {
@@ -177,10 +179,27 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 
         send(session, WebSocketResponse.ok("RECONNECTED", Map.of(
                 "playerId",  player.getPlayerId(),
+                "creatorId", room.getCreatorId(),
                 "gameState", buildState(room, player)
         )));
         broadcastExcept(room, session.getId(),
                 WebSocketResponse.ok("PLAYER_RECONNECTED", Map.of("playerName", player.getPlayerName())));
+    }
+
+    private void handleStartGame(WebSocketSession session) {
+        GameRoom room     = requireRoom(session);
+        String   playerId = requirePlayerId(session);
+
+        if (!playerId.equals(room.getCreatorId())) {
+            send(session, WebSocketResponse.err("ERROR", "Only the room creator can start the game."));
+            return;
+        }
+        if (!room.canStart()) {
+            send(session, WebSocketResponse.err("ERROR",
+                    "Need at least 2 players to start (currently " + room.getPlayers().size() + ")."));
+            return;
+        }
+        startGame(room);
     }
 
     private void handleDrawFromDeck(WebSocketSession session) {
@@ -240,7 +259,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                 "playerId",       playerId,
                 "card",           discarded,
                 "nextPlayerId",   nextPlayer != null ? nextPlayer.getPlayerId() : "",
-                "nextPlayerName", nextPlayer != null ? nextPlayer.getPlayerName() : ""
+                "nextPlayerName", nextPlayer != null ? nextPlayer.getPlayerName() : "",
+                "playerDiscards", room.getPlayerDiscardSnapshot()
         )));
 
         // Broadcast updated player summaries (card counts changed)
@@ -254,8 +274,26 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         GameRoom room     = requireRoom(session);
         String   playerId = requirePlayerId(session);
 
-        gameEngine.rearrangeCards(room, playerId, req.groups());
+        boolean jokerJustUnlocked = gameEngine.rearrangeCards(room, playerId, req.groups());
         send(session, WebSocketResponse.ok("CARDS_REARRANGED", Map.of("groups", req.groups())));
+
+        if (jokerJustUnlocked) {
+            room.findByPlayerId(playerId).ifPresent(player -> {
+                // Tell this player their joker is unlocked
+                send(session, WebSocketResponse.ok("JOKER_UNLOCKED", Map.of(
+                        "playerId",   playerId,
+                        "playerName", player.getPlayerName()
+                )));
+                // Tell others this player's joker is unlocked (for display)
+                broadcastExcept(room, session.getId(),
+                        WebSocketResponse.ok("JOKER_UNLOCKED", Map.of(
+                                "playerId",   playerId,
+                                "playerName", player.getPlayerName()
+                        )));
+            });
+            // Update player summaries so jokerUnlocked flag propagates
+            broadcastPlayerSummaries(room, "TURN_CHANGED");
+        }
     }
 
     private void handleDeclareWin(WebSocketSession session, WebSocketMessage msg) throws Exception {
@@ -388,8 +426,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                 room.getRoomCode(),
                 room.getStatus(),
                 buildSummaries(room, currentId),
-                List.copyOf(recipient.getHandCards()),
-                List.copyOf(recipient.getGroups()),
+                recipient != null ? List.copyOf(recipient.getHandCards()) : List.of(),
+                recipient != null ? List.copyOf(recipient.getGroups()) : List.of(),
                 room.peekTopDiscard().orElse(null),
                 room.getDeck().size(),
                 currentId,
@@ -397,7 +435,9 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                 room.isJokerUnlocked(),
                 (int) timeLeft,
                 room.getWinnerId(),
-                room.getWinnerName()
+                room.getWinnerName(),
+                room.getCreatorId(),
+                room.getPlayerDiscardSnapshot()
         );
     }
 
@@ -409,7 +449,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                         p.getSeatIndex(),
                         p.handSize(),
                         p.isConnected(),
-                        p.getPlayerId().equals(currentPlayerId)
+                        p.getPlayerId().equals(currentPlayerId),
+                        p.isJokerUnlocked()
                 ))
                 .toList();
     }

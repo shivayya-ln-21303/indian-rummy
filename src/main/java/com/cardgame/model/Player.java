@@ -48,6 +48,9 @@ public class Player {
     /** Index (0-based) of this player in the room's player list. */
     private int seatIndex;
 
+    /** Whether this player has formed a valid 4-card pure group (unlocks joker for them). */
+    private volatile boolean jokerUnlocked;
+
     public Player(String playerId, String playerName, String sessionId, int seatIndex) {
         this.playerId   = playerId;
         this.playerName = playerName;

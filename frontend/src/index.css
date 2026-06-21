@@ -530,3 +530,101 @@ body {
    ============================================================ */
 .text-gold   { color: var(--gold); }
 .text-center { text-align: center; }
+
+/* ============================================================
+   Per-player discard piles
+   ============================================================ */
+.player-discard-piles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(0,0,0,0.25);
+  border-radius: 12px;
+  margin: 4px 8px;
+  justify-content: center;
+}
+
+.player-discard-slot {
+  position: relative;
+  background: rgba(255,255,255,0.07);
+  border-radius: 10px;
+  padding: 6px 10px;
+  min-width: 80px;
+  text-align: center;
+  border: 1.5px solid rgba(255,255,255,0.12);
+}
+
+.discard-slot-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  user-select: none;
+}
+
+.active-discard-slot {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 8px rgba(240,165,0,0.4);
+}
+
+.discard-slot-name {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.85);
+  white-space: nowrap;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.discard-slot-top {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.discard-slot-empty {
+  width: 38px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  color: rgba(255,255,255,0.3);
+  border: 1.5px dashed rgba(255,255,255,0.2);
+  border-radius: 5px;
+}
+
+.discard-count-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  background: var(--gold);
+  color: #1a1a2e;
+  font-size: 0.6rem;
+  font-weight: 900;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.discard-pile-expanded {
+  position: absolute;
+  bottom: 110%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15,30,15,0.97);
+  border: 2px solid var(--gold);
+  border-radius: 14px;
+  padding: 12px 16px;
+  min-width: 220px;
+  max-width: 90vw;
+  z-index: 100;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+

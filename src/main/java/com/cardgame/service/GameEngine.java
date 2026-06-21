@@ -174,6 +174,7 @@ public class GameEngine {
 
             player.getHandCards().remove(card);
             room.getDiscardPile().push(card);
+            room.recordDiscard(playerId, card);
             room.advanceTurn();
 
             log.info("Room [{}] — {} discarded {}", room.getRoomCode(), player.getPlayerName(), card);
@@ -189,10 +190,11 @@ public class GameEngine {
 
     /**
      * Stores the player's current card grouping proposal.
-     * No validation is performed — this is purely an organisational action.
-     * Validation happens only on {@link #declareWin}.
+     * If the groups contain a valid 4-card pure set, the player's personal joker is unlocked.
+     *
+     * @return true if the player's joker was JUST unlocked by this rearrangement.
      */
-    public void rearrangeCards(GameRoom room, String playerId, List<List<String>> groupIds) {
+    public boolean rearrangeCards(GameRoom room, String playerId, List<List<String>> groupIds) {
         room.getLock().lock();
         try {
             validateActive(room);
@@ -212,6 +214,17 @@ public class GameEngine {
                 }
                 player.getGroups().add(group);
             }
+
+            // Check if player now has a valid 4-card pure group → unlock their joker
+            if (!player.isJokerUnlocked()) {
+                for (List<Card> g : player.getGroups()) {
+                    if (g.size() == 4 && isPureSet(g)) {
+                        player.setJokerUnlocked(true);
+                        return true; // just unlocked
+                    }
+                }
+            }
+            return false;
         } finally {
             room.getLock().unlock();
         }
@@ -317,16 +330,18 @@ public class GameEngine {
             // Validate 4-card group (must be pure — no Joker substitution allowed)
             validatePureGroup(fourGroup);
 
-            // Joker unlocks at this point
-            boolean jokerJustUnlocked = !room.isJokerUnlocked();
+            // Per-player joker unlocks at this point (if not already)
+            boolean jokerJustUnlocked = !player.isJokerUnlocked();
+            player.setJokerUnlocked(true);
+            // Also set global flag for backward compat / status display
             room.setJokerUnlocked(true);
             if (room.getStatus() == RoomStatus.PLAYING) {
                 room.setStatus(RoomStatus.JOKER_UNLOCKED);
             }
 
-            // --- Step 4: validate three 3-card groups ---
+            // --- Step 4: validate three 3-card groups using PLAYER's joker status ---
             for (List<Card> g : threeGroups) {
-                validateThreeGroup(g, true /* joker is now unlocked */);
+                validateThreeGroup(g, player.isJokerUnlocked());
             }
 
             // --- WIN! ---

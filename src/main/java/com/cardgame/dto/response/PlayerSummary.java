@@ -7,6 +7,7 @@ public record PlayerSummary(
         int     seatIndex,
         int     cardCount,
         boolean connected,
-        boolean isCurrentTurn
+        boolean isCurrentTurn,
+        boolean jokerUnlocked
 ) {}
 

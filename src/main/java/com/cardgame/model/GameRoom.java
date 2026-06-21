@@ -36,6 +36,9 @@ public class GameRoom {
     /** Short human-readable code shown in the UI (e.g. "AB12CD"). */
     private final String roomCode;
 
+    /** PlayerId of the player who created this room (can start the game). */
+    private volatile String creatorId;
+
     // ---------------------------------------------------------------------------
     // Players
     // ---------------------------------------------------------------------------
@@ -56,6 +59,13 @@ public class GameRoom {
      * Never null; starts empty.
      */
     private final Deque<Card> discardPile = new ArrayDeque<>();
+
+    /**
+     * Per-player discard history — playerId → list of discarded cards (newest first).
+     * Separate from the main discard pile; used for display purposes.
+     */
+    private final java.util.concurrent.ConcurrentHashMap<String, java.util.LinkedList<Card>>
+            playerDiscardHistory = new java.util.concurrent.ConcurrentHashMap<>();
 
     /** Index into {@code players} for the current turn. */
     private volatile int currentTurnIndex;
@@ -139,6 +149,36 @@ public class GameRoom {
 
     public boolean isFull() {
         return players.size() >= MAX_PLAYERS;
+    }
+
+    /** Returns true if enough players are present to start the game (2+). */
+    public boolean canStart() {
+        return players.size() >= 2 && status == RoomStatus.WAITING_FOR_PLAYERS;
+    }
+
+    /**
+     * Adds a card to a player's discard history.
+     * Keeps at most 20 entries per player.
+     */
+    public void recordDiscard(String playerId, Card card) {
+        playerDiscardHistory.compute(playerId, (id, list) -> {
+            if (list == null) list = new java.util.LinkedList<>();
+            list.addFirst(card);
+            if (list.size() > 20) list.removeLast();
+            return list;
+        });
+    }
+
+    /**
+     * Returns a snapshot of each player's discard history (newest first, max 10 per player).
+     */
+    public java.util.Map<String, List<Card>> getPlayerDiscardSnapshot() {
+        java.util.Map<String, List<Card>> snapshot = new java.util.LinkedHashMap<>();
+        for (Player p : players) {
+            java.util.LinkedList<Card> hist = playerDiscardHistory.get(p.getPlayerId());
+            snapshot.put(p.getPlayerId(), hist == null ? List.of() : List.copyOf(hist));
+        }
+        return snapshot;
     }
 
     public boolean isActive() {

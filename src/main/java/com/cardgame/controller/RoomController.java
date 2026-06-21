@@ -71,7 +71,8 @@ public class RoomController {
                 .map(p -> new PlayerSummary(
                         p.getPlayerId(), p.getPlayerName(), p.getSeatIndex(),
                         p.handSize(), p.isConnected(),
-                        p.getPlayerId().equals(currentId)
+                        p.getPlayerId().equals(currentId),
+                        p.isJokerUnlocked()
                 ))
                 .toList();
     }

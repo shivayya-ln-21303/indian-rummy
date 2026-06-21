@@ -29,6 +29,7 @@ export interface PlayerSummary {
   cardCount: number;
   connected: boolean;
   isCurrentTurn: boolean;
+  jokerUnlocked: boolean;
 }
 
 export interface GameState {
@@ -46,6 +47,8 @@ export interface GameState {
   turnTimeLeft: number;
   winnerId: string | null;
   winnerName: string | null;
+  creatorId: string | null;
+  playerDiscards: Record<string, Card[]>;
 }
 
 // ============================================================

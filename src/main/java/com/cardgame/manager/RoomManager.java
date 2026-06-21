@@ -59,6 +59,7 @@ public class RoomManager {
 
         GameRoom room   = new GameRoom(roomId, roomCode);
         Player   player = new Player(playerId, playerName, sessionId, 0);
+        room.setCreatorId(playerId);
 
         room.getLock().lock();
         try {

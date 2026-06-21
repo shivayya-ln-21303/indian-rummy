@@ -14,6 +14,7 @@ export default function PlayerHand() {
   const isMyTurn = gameState.currentPlayerId === playerId;
   const hasDrawn  = gameState.myCards.length === 14;
   const myCards   = gameState.myCards;
+  const myJokerUnlocked = gameState.players.find(p => p.playerId === playerId)?.jokerUnlocked ?? false;
 
   // Map cardId → which group index it belongs to
   const cardGroupIndex = new Map<string, number>();
@@ -67,18 +68,33 @@ export default function PlayerHand() {
   return (
     <div className="player-hand-container">
 
+      {/* ── Joker status ── */}
+      {myJokerUnlocked && (
+        <div style={{
+          padding: '4px 12px', textAlign: 'center',
+          background: 'linear-gradient(90deg, rgba(240,165,0,0.15), rgba(240,165,0,0.08))',
+          borderBottom: '1px solid rgba(240,165,0,0.3)',
+          fontSize: '0.78rem', color: '#ffd700', fontWeight: 700,
+        }}>
+          🃏 జోకర్ అన్‌లాక్ — మీరు అడవి పేక వాడవచ్చు!
+        </div>
+      )}
+
       {/* ── Groups area ── */}
       {pendingGroups.length > 0 && (
         <div className="groups-area">
+          <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.6)', paddingBottom: 2, paddingLeft: 4 }}>
+            📦 మీ సమూహాలు ({pendingGroups.length}/4)
+          </div>
           {pendingGroups.map((group, gi) => {
             const gc = GROUP_COLORS[gi % GROUP_COLORS.length];
-            const sameRankGroup = group.every(c => !c.joker && c.rank === group[0].rank) ||
-              (group.filter(c => !c.joker).every(c => c.rank === group.find(x => !x.joker)?.rank));
+            const isSameRank = group.filter(c => !c.joker).length >= 2 &&
+              group.filter(c => !c.joker).every(c => c.rank === group.find(x => !x.joker)?.rank);
             return (
               <div key={gi} className="group-row" style={{ borderColor: `${gc}88` }}>
                 <div className="group-label-box" style={{ background: gc }}>
                   G{gi + 1}
-                  {sameRankGroup && <span style={{ fontSize: '0.5rem', display: 'block' }}>సంఖ్య</span>}
+                  {isSameRank && <span style={{ fontSize: '0.5rem', display: 'block' }}>సంఖ్య</span>}
                 </div>
                 {group.map(card => (
                   <CardComponent
@@ -158,6 +174,11 @@ export default function PlayerHand() {
         మీ పేకలు ({myCards.length})
         {isMyTurn && !hasDrawn && <span className="turn-hint-label"> ← పేక తీసుకోండి</span>}
         {isMyTurn && hasDrawn && <span className="turn-hint-label"> → పేక వేయండి లేదా గ్రూప్ చేయండి</span>}
+        {!isMyTurn && selectedCards.length === 0 && (
+          <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', marginLeft: 8 }}>
+            (పేకలు నొక్కి సమూహం చేయండి)
+          </span>
+        )}
       </div>
       <div className="hand-scroll">
         {myCards.map(card => {
@@ -182,3 +203,4 @@ export default function PlayerHand() {
     </div>
   );
 }
+

@@ -23,6 +23,8 @@ public record GameStateResponse(
         boolean         jokerUnlocked,
         int             turnTimeLeft,
         String          winnerId,
-        String          winnerName
+        String          winnerName,
+        String          creatorId,
+        java.util.Map<String, List<Card>> playerDiscards
 ) {}
 

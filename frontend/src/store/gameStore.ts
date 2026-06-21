@@ -11,6 +11,7 @@ interface GameStore {
   playerId: string | null;
   playerName: string;
   roomCode: string | null;
+  isCreator: boolean;
 
   // Game state
   gameState: GameState | null;
@@ -28,6 +29,7 @@ interface GameStore {
   createRoom: () => void;
   joinRoom: (code: string) => void;
   reconnect: () => void;
+  startGame: () => void;
   drawFromDeck: () => void;
   drawFromDiscard: () => void;
   discardCard: (cardId: string) => void;
@@ -48,6 +50,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   playerId: null,
   playerName: '',
   roomCode: null,
+  isCreator: false,
   gameState: null,
   selectedCards: [],
   pendingGroups: [],
@@ -94,6 +97,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       wsService.send('RECONNECT', { roomCode, playerId });
     }
   },
+
+  startGame: () => wsService.send('START_GAME'),
 
   // ---------------------------------------------------------------------------
   // Game actions
@@ -147,28 +152,54 @@ function registerHandlers(
 ) {
   wsService.on('ROOM_CREATED', (res: WsResponse) => {
     if (!res.success) { set({ errorMessage: res.error }); return; }
-    const d = res.data as { roomCode: string; playerId: string };
-    set({ roomCode: d.roomCode, playerId: d.playerId });
+    const d = res.data as { roomCode: string; playerId: string; creatorId: string; gameState?: GameState };
+    set({
+      roomCode:  d.roomCode,
+      playerId:  d.playerId,
+      isCreator: true,
+      gameState: d.gameState ?? {
+        roomId: '', roomCode: d.roomCode, status: 'WAITING_FOR_PLAYERS',
+        players: [], myCards: [], myGroups: [], topDiscard: null,
+        deckSize: 0, currentPlayerId: null, currentPlayerName: null,
+        jokerUnlocked: false, turnTimeLeft: 0, winnerId: null, winnerName: null,
+        creatorId: d.creatorId, playerDiscards: {},
+      },
+    });
   });
 
   wsService.on('PLAYER_JOINED', (res: WsResponse) => {
     if (!res.success) { set({ errorMessage: res.error }); return; }
-    const d = res.data as { playerId?: string; roomCode?: string; gameState?: GameState; playerName?: string; playerCount?: number };
+    const d = res.data as {
+      playerId?: string; roomCode?: string; gameState?: GameState;
+      playerName?: string; playerCount?: number; creatorId?: string;
+      players?: PlayerSummary[];
+    };
     if (d.playerId) {
+      // This player just joined
       set({
         playerId:  d.playerId,
         roomCode:  d.roomCode ?? get().roomCode,
+        isCreator: d.playerId === d.creatorId,
         gameState: d.gameState ?? get().gameState,
       });
     } else {
-    set({ notification: `${d.playerName} చేరారు (${d.playerCount}/4)` });
+      // Another player joined — update player list in waiting room
+      const gs = get().gameState;
+      if (gs && d.players) {
+        set({ gameState: { ...gs, players: d.players } });
+      }
+      set({ notification: `${d.playerName} చేరారు (${d.playerCount}/4)` });
     }
   });
 
   wsService.on('RECONNECTED', (res: WsResponse) => {
     if (!res.success) { set({ errorMessage: res.error }); return; }
-    const d = res.data as { playerId: string; gameState: GameState };
-    set({ playerId: d.playerId, gameState: d.gameState });
+    const d = res.data as { playerId: string; creatorId?: string; gameState: GameState };
+    set({
+      playerId:  d.playerId,
+      isCreator: d.playerId === (d.creatorId ?? d.gameState?.creatorId),
+      gameState: d.gameState,
+    });
   });
 
   wsService.on('PLAYER_RECONNECTED', (res: WsResponse) => {
@@ -248,22 +279,43 @@ function registerHandlers(
 
   wsService.on('CARD_DISCARDED', (res: WsResponse) => {
     if (!res.success) return;
-    const d = res.data as { card: Card; playerId: string; nextPlayerId: string };
+    const d = res.data as {
+      card: Card; playerId: string; nextPlayerId: string;
+      playerDiscards?: Record<string, Card[]>;
+    };
     const gs = get().gameState;
     if (!gs) return;
     const isMe = d.playerId === get().playerId;
     const newCards = isMe
       ? gs.myCards.filter((c) => c.cardId !== d.card.cardId)
       : gs.myCards;
-    set({ gameState: { ...gs, myCards: newCards, topDiscard: d.card } });
+    set({ gameState: {
+      ...gs,
+      myCards: newCards,
+      topDiscard: d.card,
+      playerDiscards: d.playerDiscards ?? gs.playerDiscards,
+    }});
   });
 
   wsService.on('JOKER_UNLOCKED', (res: WsResponse) => {
+    const d = res.data as { playerId?: string; playerName?: string };
     const gs = get().gameState;
     if (gs) {
+      const myId = get().playerId;
+      const isMe = d.playerId === myId;
+      // Update per-player jokerUnlocked flag in players list
+      const updatedPlayers = gs.players.map(p =>
+        p.playerId === d.playerId ? { ...p, jokerUnlocked: true } : p
+      );
       set({
-        gameState:    { ...gs, jokerUnlocked: true, status: 'JOKER_UNLOCKED' },
-        notification: '🃏 జోకర్ అన్‌లాక్! అడవి పేక వాడవచ్చు.',
+        gameState: {
+          ...gs,
+          players: updatedPlayers,
+          jokerUnlocked: isMe ? true : gs.jokerUnlocked,
+        },
+        notification: isMe
+          ? '🃏 జోకర్ అన్‌లాక్! అడవి పేక వాడవచ్చు.'
+          : `🃏 ${d.playerName ?? 'ఒక ఆటగాడు'} జోకర్ అన్‌లాక్ చేసారు!`,
       });
     }
   });
