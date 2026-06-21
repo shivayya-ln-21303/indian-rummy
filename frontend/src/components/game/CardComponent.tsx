@@ -5,48 +5,77 @@ interface CardProps {
   card: CardType;
   selected?: boolean;
   inGroup?: boolean;
+  groupColor?: string;
   faceDown?: boolean;
   small?: boolean;
   onClick?: () => void;
 }
 
-export default function CardComponent({ card, selected, inGroup, faceDown, small, onClick }: CardProps) {
+export default function CardComponent({
+  card, selected, inGroup, groupColor, faceDown, small, onClick,
+}: CardProps) {
+  const sizeStyle = small
+    ? ({ '--card-w': '28px', '--card-h': '40px' } as React.CSSProperties)
+    : undefined;
+
+  /* ── Face-down card ── */
   if (faceDown) {
-    return (
-      <div
-        className="card back"
-        style={small ? { '--card-w': '22px', '--card-h': '32px' } as React.CSSProperties : undefined}
-      />
-    );
+    return <div className="card back" style={sizeStyle} />;
   }
 
+  /* ── Joker ── */
   if (card.joker) {
     return (
-      <div className={`card joker-card${selected ? ' selected' : ''}`} onClick={onClick}>
-        <div className="card-corner" style={{ fontSize: '1.4rem' }}>🃏</div>
-        <div style={{ fontSize: '0.55rem', color: '#ffd700', fontWeight: 700 }}>JOKER</div>
-        <div className="card-corner bottom" style={{ fontSize: '1.4rem' }}>🃏</div>
+      <div
+        className={`card joker-card${selected ? ' selected' : ''}${inGroup ? ' in-group' : ''}`}
+        style={groupColor && inGroup ? { borderColor: groupColor, boxShadow: `0 0 8px ${groupColor}88` } : undefined}
+        onClick={onClick}
+      >
+        <div className="card-tl" style={{ color: '#b8860b' }}>
+          <span className="card-rank-text">★</span>
+        </div>
+        <div className="card-joker-center">
+          <span style={{ fontSize: '2rem' }}>🃏</span>
+          <span className="card-joker-label">జోకర్</span>
+        </div>
+        <div className="card-br" style={{ color: '#b8860b' }}>
+          <span className="card-rank-text">★</span>
+        </div>
       </div>
     );
   }
 
+  /* ── Regular card ── */
   const rankDisplay = RANK_DISPLAY[card.rank];
   const suitSymbol  = SUIT_SYMBOL[card.suit];
-  const colorClass  = isRedSuit(card.suit) ? 'red' : 'black';
+  const isRed       = isRedSuit(card.suit);
+  const color       = isRed ? '#c0392b' : '#1a1a1a';
+
+  const groupBorderStyle = groupColor && inGroup
+    ? { borderColor: groupColor, borderWidth: '2.5px', boxShadow: `0 0 10px ${groupColor}66` }
+    : undefined;
 
   return (
     <div
-      className={`card ${colorClass}${selected ? ' selected' : ''}${inGroup ? ' in-group' : ''}`}
+      className={`card${selected ? ' selected' : ''}${inGroup ? ' in-group' : ''}`}
+      style={{ ...sizeStyle, ...groupBorderStyle }}
       onClick={onClick}
     >
-      <div className="card-corner">
-        <div className="card-rank">{rankDisplay}</div>
-        <div className="card-suit">{suitSymbol}</div>
+      {/* Top-left corner */}
+      <div className="card-tl" style={{ color }}>
+        <span className="card-rank-text">{rankDisplay}</span>
+        <span className="card-suit-text">{suitSymbol}</span>
       </div>
-      <div className="card-center">{suitSymbol}</div>
-      <div className="card-corner bottom">
-        <div className="card-rank">{rankDisplay}</div>
-        <div className="card-suit">{suitSymbol}</div>
+
+      {/* Center suit */}
+      <div className="card-suit-center" style={{ color }}>
+        {suitSymbol}
+      </div>
+
+      {/* Bottom-right corner (rotated) */}
+      <div className="card-br" style={{ color }}>
+        <span className="card-rank-text">{rankDisplay}</span>
+        <span className="card-suit-text">{suitSymbol}</span>
       </div>
     </div>
   );

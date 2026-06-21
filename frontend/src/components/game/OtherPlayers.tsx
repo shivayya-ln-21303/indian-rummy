@@ -9,10 +9,13 @@ export default function OtherPlayers() {
   return (
     <div className="opponents-row">
       {others.map((player) => (
-        <div key={player.playerId} className="opponent">
+        <div
+          key={player.playerId}
+          className={`opponent${player.isCurrentTurn ? ' active-player' : ''}`}
+        >
           {player.isCurrentTurn && <div className="active-turn-ring" />}
           <div className="opponent-name" title={player.playerName}>
-            {player.isCurrentTurn ? '🎯 ' : ''}{player.playerName}
+            {player.playerName}
           </div>
           <div className="opponent-cards">
             {Array.from({ length: Math.min(player.cardCount, 6) }).map((_, i) => (
@@ -20,10 +23,10 @@ export default function OtherPlayers() {
             ))}
           </div>
           <div className="opponent-card-count">
-            {player.cardCount} పేకలు{!player.connected && ' (ఆఫ్‌లైన్)'}
+            {player.cardCount} పేకలు{!player.connected && ' ⚠️'}
           </div>
           {player.isCurrentTurn && (
-            <div className="opponent-turn-badge">వంతు</div>
+            <div className="opponent-turn-badge">వంతు ▶</div>
           )}
         </div>
       ))}
