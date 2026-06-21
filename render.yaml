@@ -12,23 +12,15 @@
 services:
   - type: web
     name: indian-rummy
-    runtime: java                           # Render native Java runtime
-    plan: free                              # free tier (change to starter for always-on)
+    runtime: docker                         # Docker build (handles Java + Node internally)
+    plan: free                              # free tier
     region: singapore                       # pick closest to your users
 
-    buildCommand: >
-      ./mvnw clean package -Pbuild-frontend -DskipTests
-
-    startCommand: >
-      java -Dserver.port=$PORT $JAVA_OPTS -jar target/indian-rummy-1.0.0.jar
+    dockerfilePath: ./Dockerfile
 
     envVars:
-      - key: JAVA_VERSION
-        value: "21"
       - key: SPRING_PROFILES_ACTIVE
         value: prod
-      - key: JAVA_OPTS
-        value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75 -Djava.security.egd=file:/dev/./urandom"
 
     # Health check so Render knows when the app is ready
     healthCheckPath: /api/health

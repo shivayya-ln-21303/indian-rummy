@@ -2,7 +2,7 @@
 # Backend Dockerfile — multi-stage build
 # ============================================================
 
-# Stage 1: Build the JAR
+# Stage 1: Build the JAR (with embedded React frontend)
 FROM eclipse-temurin:21-jdk-alpine AS builder
 WORKDIR /app
 
@@ -11,9 +11,10 @@ COPY mvnw pom.xml ./
 COPY .mvn .mvn
 RUN chmod +x mvnw && ./mvnw dependency:go-offline -q
 
-# Copy sources and build
+# Copy sources and build (includes React via frontend-maven-plugin)
 COPY src ./src
-RUN ./mvnw package -DskipTests -q
+COPY frontend ./frontend
+RUN ./mvnw package -Pbuild-frontend -DskipTests -q
 
 # ---------------------------------------------------------------
 # Stage 2: Minimal runtime image
@@ -25,7 +26,7 @@ WORKDIR /app
 RUN addgroup -S rummy && adduser -S rummy -G rummy
 USER rummy
 
-COPY --from=builder /app/target/*.jar app.jar
+COPY --from=builder /app/target/indian-rummy-1.0.0.jar app.jar
 
 # JVM tuning for container awareness
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75 -Djava.security.egd=file:/dev/./urandom"
