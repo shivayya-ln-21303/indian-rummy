@@ -47,11 +47,21 @@ public class RoomController {
     @GetMapping("/rooms")
     public ResponseEntity<Map<String, Object>> listRooms() {
         List<Map<String, Object>> list = roomManager.getAllRooms().stream()
-                .map(r -> Map.of(
-                        "roomCode",    (Object) r.getRoomCode(),
-                        "status",      r.getStatus(),
-                        "playerCount", r.getPlayers().size()
-                ))
+                .filter(r -> r.getStatus() == RoomStatus.WAITING_FOR_PLAYERS)
+                .map(r -> {
+                    String creatorName = r.getCreatorId() == null ? "—" :
+                            r.findByPlayerId(r.getCreatorId())
+                              .map(com.cardgame.model.Player::getPlayerName)
+                              .orElse("—");
+                    return Map.of(
+                            "roomCode",    (Object) r.getRoomCode(),
+                            "status",      r.getStatus(),
+                            "playerCount", r.getPlayers().size(),
+                            "maxPlayers",  GameRoom.MAX_PLAYERS,
+                            "canJoin",     r.getPlayers().size() < GameRoom.MAX_PLAYERS,
+                            "creatorName", creatorName
+                    );
+                })
                 .toList();
         return ResponseEntity.ok(Map.of("count", list.size(), "rooms", list));
     }

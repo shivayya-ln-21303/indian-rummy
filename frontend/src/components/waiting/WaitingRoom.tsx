@@ -1,91 +1,104 @@
+import { useMemo } from 'react';
 import { useGameStore } from '../../store/gameStore';
+
+const SEAT_AVATARS = ['🎴', '🃏', '♠', '♥'];
 
 export default function WaitingRoom() {
   const { gameState, playerId, roomCode, isCreator, startGame } = useGameStore();
   const players = gameState?.players ?? [];
+  const code = gameState?.roomCode ?? roomCode ?? '';
   const canStart = isCreator && players.length >= 2;
+  const inviteLink = useMemo(() => `${window.location.origin}?room=${code}`, [code]);
 
-  const seats = Array.from({ length: 4 }, (_, i) => players[i] ?? null);
+  const seats = Array.from({ length: 4 }, (_, index) =>
+    players.find((player) => player.seatIndex === index) ?? null,
+  );
 
-  const copyCode = () => {
-    const code = gameState?.roomCode ?? roomCode ?? '';
-    if (code) {
-      navigator.clipboard.writeText(code).catch(() => {});
+  const copyCode = async () => {
+    if (!code) return;
+    try {
+      await navigator.clipboard.writeText(code);
+    } catch {
+      // ignore clipboard failures
+    }
+  };
+
+  const shareInvite = async () => {
+    if (!code) return;
+    const text = `రమ్మీ పేకాట గది కోడ్: ${code}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'రమ్మీ పేకాట', text, url: inviteLink });
+        return;
+      }
+      await navigator.clipboard.writeText(`${text} ${inviteLink}`.trim());
+    } catch {
+      // ignore share failures
     }
   };
 
   return (
-    <div className="waiting">
-      <div style={{ fontSize: '54px' }}>🃏</div>
-      <h2>ఆటగాళ్ళ కోసం వేచి ఉంది</h2>
-
-      <div style={{ textAlign: 'center' }}>
-        <p style={{ fontSize: '0.82rem', opacity: 0.75, marginBottom: 8, fontWeight: 600 }}>గది కోడ్</p>
-        <div className="room-code-display" onClick={copyCode} style={{ cursor: 'pointer' }}>
-          {gameState?.roomCode ?? roomCode}
-        </div>
-        <p style={{ fontSize: '0.72rem', opacity: 0.55, marginTop: 8 }}>👆 నొక్కితే కాపీ అవుతుంది</p>
-      </div>
-
-      <div className="waiting-seats">
-        {seats.map((player, i) => (
-          <div key={i} className={`seat ${player ? 'filled' : ''}`}>
-            {player ? (
-              <>
-                <div style={{ fontSize: '24px' }}>
-                  {player.playerId === playerId ? '🙋' : '🙂'}
-                </div>
-                <div className="seat-name">{player.playerName}</div>
-                {player.playerId === playerId && (
-                  <div style={{ fontSize: '0.65rem', color: '#ffd700', fontWeight: 700 }}>మీరు</div>
-                )}
-                {player.playerId === gameState?.creatorId && (
-                  <div style={{ fontSize: '0.6rem', color: '#aef', fontWeight: 700 }}>👑 క్రియేటర్</div>
-                )}
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: '24px', opacity: 0.3 }}>👤</div>
-                <div className="seat-empty pulse">వేచి ఉంది...</div>
-              </>
-            )}
+    <div className="waiting-screen">
+      <div className="waiting-shell premium-panel fade-in">
+        <div className="waiting-header">
+          <div>
+            <p className="eyebrow">స్నేహితుల కోసం సిద్ధంగా ఉంది</p>
+            <h2>ఆటగాళ్ల కోసం వేచి ఉంది</h2>
+            <p className="waiting-subtitle">గది కోడ్‌ను పంచుకుని అందరూ చేరిన తరువాత ఆట మొదలుపెట్టండి</p>
           </div>
-        ))}
-      </div>
-
-      <p style={{ fontSize: '0.9rem', opacity: 0.75, fontWeight: 600 }}>
-        {players.length}/4 మంది చేరారు
-      </p>
-
-      {isCreator ? (
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
-          <button
-            className={`btn btn-primary${canStart ? ' start-game-btn' : ''}`}
-            onClick={startGame}
-            disabled={!canStart}
-            style={{
-              fontSize: '1.1rem', padding: '12px 32px', borderRadius: 12,
-              fontFamily: 'inherit', fontWeight: 800,
-              background: canStart ? 'linear-gradient(135deg, #f39c12, #e74c3c)' : '#555',
-              color: '#fff', border: 'none', cursor: canStart ? 'pointer' : 'not-allowed',
-              boxShadow: canStart ? '0 4px 16px rgba(231,76,60,0.5)' : 'none',
-              opacity: canStart ? 1 : 0.6,
-            }}
-          >
-            🎮 ఆట మొదలు పెట్టు
-          </button>
-          {!canStart && (
-            <p style={{ fontSize: '0.78rem', opacity: 0.6, marginTop: 8 }}>
-              కనీసం 2 మంది ఉండాలి
-            </p>
-          )}
+          <div className="waiting-room-code glow-panel">
+            <span className="mini-label">గది కోడ్</span>
+            <div className="premium-room-code">{code}</div>
+            <div className="room-code-actions compact">
+              <button className="btn btn-secondary" onClick={copyCode}>కాపీ</button>
+              <button className="btn btn-secondary" onClick={shareInvite}>షేర్</button>
+            </div>
+          </div>
         </div>
-      ) : (
-        <p style={{ fontSize: '0.82rem', opacity: 0.55, textAlign: 'center', maxWidth: 300, lineHeight: 1.5 }}>
-          రూమ్ క్రియేటర్ ఆట మొదలు పెట్టాలి
-        </p>
-      )}
+
+        <div className="player-count-chip">{players.length}/4 మంది చేరారు</div>
+
+        <div className="waiting-seats-grid">
+          {seats.map((player, index) => {
+            const isMe = player?.playerId === playerId;
+            const isCreatorSeat = player?.playerId === gameState?.creatorId;
+            return (
+              <div key={index} className={`seat-card premium-panel-secondary ${player ? 'filled' : 'empty'}`}>
+                <div className="seat-avatar">{SEAT_AVATARS[index]}</div>
+                <div className="seat-main">
+                  <div className="seat-title-row">
+                    <span className="seat-name">{player?.playerName ?? 'వేచి ఉంది...'}</span>
+                    {player && <span className="online-dot" />}
+                  </div>
+                  <div className="seat-meta-row">
+                    {isMe && <span className="mini-badge gold">మీరు</span>}
+                    {isCreatorSeat && <span className="mini-badge dark">👑 క్రియేటర్</span>}
+                    {!player && <span className="waiting-pulse">ఇంకా ఖాళీ</span>}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="waiting-footer">
+          {isCreator ? (
+            <div className="creator-start-block">
+              <button className="btn btn-gold btn-xl pulse-gold" onClick={startGame} disabled={!canStart}>
+                🎮 ఆట మొదలు పెట్టు
+              </button>
+              <p className="helper-text">{canStart ? 'అందరూ సిద్ధమైతే వెంటనే మొదలుపెట్టండి' : 'కనీసం 2 మంది ఉండాలి'}</p>
+            </div>
+          ) : (
+            <div className="waiting-note premium-panel-secondary">
+              క్రియేటర్ ఆట మొదలు పెట్టాలి
+              <span className="loading-dots"><span>.</span><span>.</span><span>.</span></span>
+            </div>
+          )}
+
+          <button className="btn btn-secondary" onClick={shareInvite}>ఆహ్వాన లింక్ పంచుకోండి</button>
+        </div>
+      </div>
     </div>
   );
 }
-

@@ -1,199 +1,195 @@
+import { useMemo } from 'react';
+import type { CSSProperties } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import CardComponent from './CardComponent';
+import type { Card } from '../../types/game.types';
 
-const GROUP_COLORS = ['#e67e22', '#2980b9', '#8e44ad', '#27ae60'];
+const GROUP_COLORS = ['#f5c542', '#3b82f6', '#ef4444', '#22c55e'];
+
+function groupLabel(group: Card[]) {
+  const realCards = group.filter((card) => !card.joker);
+  if (realCards.length >= 2 && realCards.every((card) => card.rank === realCards[0].rank)) {
+    return 'అదే నంబరు';
+  }
+  return 'సీక్వెన్స్';
+}
 
 export default function PlayerHand() {
   const {
-    gameState, playerId, selectedCards, pendingGroups,
-    toggleCardSelection, rearrangeCards, discardCard, declareWin,
+    gameState,
+    playerId,
+    selectedCards,
+    pendingGroups,
+    toggleCardSelection,
+    rearrangeCards,
+    discardCard,
+    declareWin,
+    clearSelection,
   } = useGameStore();
 
   if (!gameState) return null;
 
   const isMyTurn = gameState.currentPlayerId === playerId;
-  const hasDrawn  = gameState.myCards.length === 14;
-  const myCards   = gameState.myCards;
-  const myJokerUnlocked = gameState.players.find(p => p.playerId === playerId)?.jokerUnlocked ?? false;
+  const hasDrawn = gameState.myCards.length === 14;
+  const myCards = gameState.myCards;
+  const myJokerUnlocked = gameState.players.find((player) => player.playerId === playerId)?.jokerUnlocked ?? false;
 
-  // Map cardId → which group index it belongs to
-  const cardGroupIndex = new Map<string, number>();
-  pendingGroups.forEach((g, gi) => g.forEach(c => cardGroupIndex.set(c.cardId, gi)));
+  const cardGroupIndex = useMemo(() => {
+    const map = new Map<string, number>();
+    pendingGroups.forEach((group, groupIndex) => group.forEach((card) => map.set(card.cardId, groupIndex)));
+    return map;
+  }, [pendingGroups]);
+
+  const selectedObjects = myCards.filter((card) => selectedCards.includes(card.cardId));
+  const firstRealSelected = selectedObjects.find((card) => !card.joker);
+  const allSameRank = selectedObjects.length >= 3
+    && !!firstRealSelected
+    && selectedObjects.every((card) => card.joker || card.rank === firstRealSelected.rank);
+
+  const tapRank = selectedObjects.length === 1 && !selectedObjects[0].joker ? selectedObjects[0].rank : null;
+  const sameRankInHand = tapRank
+    ? myCards.filter((card) => !card.joker && card.rank === tapRank && !cardGroupIndex.has(card.cardId))
+    : [];
 
   const addSelectionToGroup = () => {
-    const selected = myCards.filter(c => selectedCards.includes(c.cardId));
+    const selected = myCards.filter((card) => selectedCards.includes(card.cardId));
     if (selected.length < 3) return;
     rearrangeCards([...pendingGroups, selected]);
-    useGameStore.getState().clearSelection();
+    clearSelection();
   };
 
-  const removeGroup = (idx: number) => {
-    rearrangeCards(pendingGroups.filter((_, i) => i !== idx));
+  const removeGroup = (index: number) => {
+    rearrangeCards(pendingGroups.filter((_, groupIndex) => groupIndex !== index));
   };
 
   const handleDiscardSelected = () => {
-    if (selectedCards.length === 1) discardCard(selectedCards[0]);
+    if (selectedCards.length === 1) {
+      discardCard(selectedCards[0]);
+    }
   };
 
   const handleDeclareWin = () => {
-    const all = pendingGroups.flat();
-    if (all.length === 13) {
+    const grouped = pendingGroups.flat();
+    if (grouped.length === 13) {
       declareWin(pendingGroups);
-    } else if (hasDrawn) {
-      const extra = myCards.find(c => !all.find(g => g.cardId === c.cardId));
-      declareWin(pendingGroups, extra?.cardId);
+      return;
+    }
+    if (hasDrawn) {
+      const extraCard = myCards.find((card) => !grouped.some((groupedCard) => groupedCard.cardId === card.cardId));
+      declareWin(pendingGroups, extraCard?.cardId);
     }
   };
 
   const canDeclareWin = () => {
-    const all = pendingGroups.flat();
-    return pendingGroups.length === 4 &&
-      (all.length === 13 || (hasDrawn && all.length === 12));
+    const grouped = pendingGroups.flat();
+    return pendingGroups.length === 4 && (grouped.length === 13 || (hasDrawn && grouped.length === 12));
   };
 
-  /* ── Smart grouping helpers ── */
-  const selectedObjs = myCards.filter(c => selectedCards.includes(c.cardId));
-
-  // Same-rank detection (excluding joker)
-  const allSameRank = selectedObjs.length >= 3 &&
-    selectedObjs.every(c => !c.joker && c.rank === selectedObjs[0].rank);
-
-  // Highlight same-rank cards in hand when user taps one card
-  const tapRank = selectedObjs.length === 1 && !selectedObjs[0].joker
-    ? selectedObjs[0].rank : null;
-  const sameRankInHand = tapRank
-    ? myCards.filter(c => !c.joker && c.rank === tapRank && !cardGroupIndex.has(c.cardId))
-    : [];
-
   return (
-    <div className="player-hand-container">
+    <div className="player-hand-shell">
+      <div className="hand-header premium-panel-secondary">
+        <div>
+          <h3>మీ పేకలు</h3>
+          <p>{myCards.length} పేకలు సిద్ధంగా ఉన్నాయి</p>
+        </div>
+        <div className={`turn-hint-chip ${isMyTurn ? 'active' : ''}`}>
+          {isMyTurn ? (hasDrawn ? 'పేక వేయండి లేదా గెలుపు ప్రకటించండి' : 'పేక తీసుకోండి') : 'సమూహాలు ముందే సిద్ధం చేసుకోండి'}
+        </div>
+      </div>
 
-      {/* ── Joker status ── */}
       {myJokerUnlocked && (
-        <div style={{
-          padding: '4px 12px', textAlign: 'center',
-          background: 'linear-gradient(90deg, rgba(240,165,0,0.15), rgba(240,165,0,0.08))',
-          borderBottom: '1px solid rgba(240,165,0,0.3)',
-          fontSize: '0.78rem', color: '#ffd700', fontWeight: 700,
-        }}>
-          🃏 జోకర్ అన్‌లాక్ — మీరు అడవి పేక వాడవచ్చు!
+        <div className="joker-banner">
+          <span>🃏</span>
+          <span>జోకర్ అన్‌లాక్ — మీరు అడవి పేకను ఉపయోగించవచ్చు</span>
         </div>
       )}
 
-      {/* ── Groups area ── */}
-      {pendingGroups.length > 0 && (
-        <div className="groups-area">
-          <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.6)', paddingBottom: 2, paddingLeft: 4 }}>
-            📦 మీ సమూహాలు ({pendingGroups.length}/4)
-          </div>
-          {pendingGroups.map((group, gi) => {
-            const gc = GROUP_COLORS[gi % GROUP_COLORS.length];
-            const isSameRank = group.filter(c => !c.joker).length >= 2 &&
-              group.filter(c => !c.joker).every(c => c.rank === group.find(x => !x.joker)?.rank);
-            return (
-              <div key={gi} className="group-row" style={{ borderColor: `${gc}88` }}>
-                <div className="group-label-box" style={{ background: gc }}>
-                  G{gi + 1}
-                  {isSameRank && <span style={{ fontSize: '0.5rem', display: 'block' }}>సంఖ్య</span>}
-                </div>
-                {group.map(card => (
+      <div className="groups-area">
+        <div className="groups-title-row">
+          <span>📦 మీ సమూహాలు</span>
+          <span>{pendingGroups.length}/4</span>
+        </div>
+
+        {pendingGroups.map((group, index) => {
+          const color = GROUP_COLORS[index % GROUP_COLORS.length];
+          return (
+            <div key={index} className="group-block" style={{ '--group-accent': color } as CSSProperties}>
+              <div className="group-block-header">
+                <span className="group-badge">G{index + 1}</span>
+                <span className="group-type-label">{groupLabel(group)}</span>
+                <button type="button" className="group-remove-btn" onClick={() => removeGroup(index)}>✕</button>
+              </div>
+              <div className="group-card-row">
+                {group.map((card) => (
                   <CardComponent
                     key={card.cardId}
                     card={card}
                     inGroup
-                    groupColor={gc}
+                    groupColor={color}
+                    small
                   />
                 ))}
-                <button className="group-remove-btn" onClick={() => removeGroup(gi)}>✕</button>
               </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ── Same-rank hint (tap 1 card) ── */}
-      {sameRankInHand.length >= 2 && (
-        <div className="same-rank-hint">
-          <span>💡 {sameRankInHand.length + 1} అదే నంబరు పేకలు ఉన్నాయి</span>
-          <button
-            className="btn btn-sm"
-            style={{ background: '#f39c12', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontSize: '0.78rem', fontFamily: 'inherit', fontWeight: 700 }}
-            onClick={() => {
-              sameRankInHand.forEach(c => {
-                if (!selectedCards.includes(c.cardId)) useGameStore.getState().toggleCardSelection(c.cardId);
-              });
-            }}
-          >
-            అన్నీ సెలెక్ట్ చేయండి
-          </button>
-        </div>
-      )}
-
-      {/* ── Selection action bar ── */}
-      {selectedCards.length > 0 && (
-        <div className="selection-bar">
-          {selectedCards.length >= 3 && allSameRank && (
-            <button
-              className="btn btn-sm same-rank-btn"
-              onClick={addSelectionToGroup}
-            >
-              🎯 అదే నంబరు సమూహం ({selectedCards.length})
-            </button>
-          )}
-          {selectedCards.length >= 3 && !allSameRank && (
-            <button className="btn btn-primary btn-sm" onClick={addSelectionToGroup}>
-              ✅ సమూహం చేయండి ({selectedCards.length})
-            </button>
-          )}
-          {selectedCards.length === 1 && isMyTurn && hasDrawn && (
-            <button className="btn btn-danger btn-sm" onClick={handleDiscardSelected}>
-              🗑️ పేక వేయండి
-            </button>
-          )}
-          <button className="btn btn-secondary btn-sm" onClick={() => useGameStore.getState().clearSelection()}>
-            ✖ రద్దు
-          </button>
-        </div>
-      )}
-
-      {/* ── Declare win button ── */}
-      {canDeclareWin() && (
-        <div style={{ padding: '4px 10px' }}>
-          <button
-            className="btn declare-win-btn"
-            onClick={handleDeclareWin}
-            style={{ width: '100%' }}
-          >
-            🏆 గెలుపు ప్రకటించండి!
-          </button>
-        </div>
-      )}
-
-      {/* ── Hand label + scroll ── */}
-      <div className="my-label">
-        మీ పేకలు ({myCards.length})
-        {isMyTurn && !hasDrawn && <span className="turn-hint-label"> ← పేక తీసుకోండి</span>}
-        {isMyTurn && hasDrawn && <span className="turn-hint-label"> → పేక వేయండి లేదా గ్రూప్ చేయండి</span>}
-        {!isMyTurn && selectedCards.length === 0 && (
-          <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', marginLeft: 8 }}>
-            (పేకలు నొక్కి సమూహం చేయండి)
-          </span>
-        )}
+            </div>
+          );
+        })}
       </div>
+
+      {sameRankInHand.length >= 2 && (
+        <div className="same-rank-hint premium-panel-secondary">
+          <span>💡 ఈ నంబరుకు ఇంకా {sameRankInHand.length} పేకలు ఉన్నాయి</span>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => sameRankInHand.forEach((card) => {
+              if (!selectedCards.includes(card.cardId)) {
+                toggleCardSelection(card.cardId);
+              }
+            })}
+          >
+            అన్నీ ఎంచుకోండి
+          </button>
+        </div>
+      )}
+
+      {selectedCards.length > 0 && (
+        <div className="selection-bar premium-panel-secondary">
+          <span className="selection-count">{selectedCards.length} పేకలు ఎంపికయ్యాయి</span>
+          <div className="selection-actions">
+            {selectedCards.length >= 3 && (
+              <button type="button" className={`btn ${allSameRank ? 'btn-gold' : 'btn-blue'} btn-sm`} onClick={addSelectionToGroup}>
+                {allSameRank ? 'అదే నంబరు సమూహం' : 'సమూహం చేయండి'}
+              </button>
+            )}
+            {selectedCards.length === 1 && isMyTurn && hasDrawn && (
+              <button type="button" className="btn btn-danger btn-sm" onClick={handleDiscardSelected}>
+                పేక వేయండి
+              </button>
+            )}
+            <button type="button" className="btn btn-secondary btn-sm" onClick={clearSelection}>రద్దు</button>
+          </div>
+        </div>
+      )}
+
+      {canDeclareWin() && (
+        <div className="declare-win-wrap">
+          <button type="button" className="btn btn-gold btn-xl pulse-gold" onClick={handleDeclareWin}>
+            🏆 గెలుపు ప్రకటించండి
+          </button>
+        </div>
+      )}
+
       <div className="hand-scroll">
-        {myCards.map(card => {
-          const gi = cardGroupIndex.get(card.cardId);
-          const isSameRankHighlighted = tapRank && !card.joker && card.rank === tapRank && !cardGroupIndex.has(card.cardId);
+        {myCards.map((card) => {
+          const groupIndex = cardGroupIndex.get(card.cardId);
+          const highlightSameRank = tapRank && !card.joker && card.rank === tapRank && !cardGroupIndex.has(card.cardId);
           return (
-            <div
-              key={card.cardId}
-              className={isSameRankHighlighted ? 'same-rank-glow' : ''}
-            >
+            <div key={card.cardId} className={highlightSameRank ? 'same-rank-glow' : ''}>
               <CardComponent
                 card={card}
                 selected={selectedCards.includes(card.cardId)}
-                inGroup={gi !== undefined}
-                groupColor={gi !== undefined ? GROUP_COLORS[gi % GROUP_COLORS.length] : undefined}
+                inGroup={groupIndex !== undefined}
+                groupColor={groupIndex !== undefined ? GROUP_COLORS[groupIndex % GROUP_COLORS.length] : undefined}
                 onClick={() => toggleCardSelection(card.cardId)}
               />
             </div>
@@ -203,4 +199,3 @@ export default function PlayerHand() {
     </div>
   );
 }
-

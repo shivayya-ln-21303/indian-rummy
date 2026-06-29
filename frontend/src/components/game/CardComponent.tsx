@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { Card as CardType } from '../../types/game.types';
 import { RANK_DISPLAY, SUIT_SYMBOL, isRedSuit } from '../../types/game.types';
 
@@ -8,76 +9,90 @@ interface CardProps {
   groupColor?: string;
   faceDown?: boolean;
   small?: boolean;
+  animClass?: string;
   onClick?: () => void;
 }
 
 export default function CardComponent({
-  card, selected, inGroup, groupColor, faceDown, small, onClick,
+  card,
+  selected = false,
+  inGroup = false,
+  groupColor,
+  faceDown = false,
+  small = false,
+  animClass,
+  onClick,
 }: CardProps) {
   const sizeStyle = small
-    ? ({ '--card-w': '28px', '--card-h': '40px' } as React.CSSProperties)
+    ? ({ '--card-w': '46px', '--card-h': '66px' } as CSSProperties)
     : undefined;
 
-  /* ── Face-down card ── */
+  const className = [
+    'card',
+    selected ? 'selected' : '',
+    inGroup ? 'in-group' : '',
+    card.joker ? 'joker-card' : '',
+    faceDown ? 'back' : '',
+    small ? 'small-card' : '',
+    animClass ?? '',
+  ].filter(Boolean).join(' ');
+
+  const style = {
+    ...sizeStyle,
+    ...(inGroup && groupColor ? ({ '--group-color': groupColor } as CSSProperties) : undefined),
+  };
+
   if (faceDown) {
-    return <div className="card back" style={sizeStyle} />;
+    return (
+      <div className={className} style={style} onClick={onClick}>
+        <div className="card-back-pattern">
+          <span>♦</span>
+          <span>♠</span>
+          <span>♥</span>
+          <span>♣</span>
+        </div>
+        <div className="card-back-center">రమ్మీ</div>
+      </div>
+    );
   }
 
-  /* ── Joker ── */
   if (card.joker) {
     return (
-      <div
-        className={`card joker-card${selected ? ' selected' : ''}${inGroup ? ' in-group' : ''}`}
-        style={groupColor && inGroup ? { borderColor: groupColor, boxShadow: `0 0 8px ${groupColor}88` } : undefined}
-        onClick={onClick}
-      >
-        <div className="card-tl" style={{ color: '#b8860b' }}>
-          <span className="card-rank-text">★</span>
+      <div className={className} style={style} onClick={onClick}>
+        <div className="card-tl joker-corner">
+          <span className="card-rank">★</span>
+          <span className="card-suit">🃏</span>
         </div>
-        <div className="card-joker-center">
-          <span style={{ fontSize: '2rem' }}>🃏</span>
-          <span className="card-joker-label">జోకర్</span>
+        <div className="card-center joker-center">
+          <span className="joker-star">✦</span>
+          <span className="joker-icon">🃏</span>
+          <span className="joker-label">జోకర్</span>
         </div>
-        <div className="card-br" style={{ color: '#b8860b' }}>
-          <span className="card-rank-text">★</span>
+        <div className="card-br joker-corner">
+          <span className="card-rank">★</span>
+          <span className="card-suit">🃏</span>
         </div>
       </div>
     );
   }
 
-  /* ── Regular card ── */
   const rankDisplay = RANK_DISPLAY[card.rank];
-  const suitSymbol  = SUIT_SYMBOL[card.suit];
-  const isRed       = isRedSuit(card.suit);
-  const color       = isRed ? '#c0392b' : '#1a1a1a';
-
-  const groupBorderStyle = groupColor && inGroup
-    ? { borderColor: groupColor, borderWidth: '2.5px', boxShadow: `0 0 10px ${groupColor}66` }
-    : undefined;
+  const suitSymbol = SUIT_SYMBOL[card.suit];
+  const color = isRedSuit(card.suit) ? 'var(--red-card)' : 'var(--black-card)';
 
   return (
-    <div
-      className={`card${selected ? ' selected' : ''}${inGroup ? ' in-group' : ''}`}
-      style={{ ...sizeStyle, ...groupBorderStyle }}
-      onClick={onClick}
-    >
-      {/* Top-left corner */}
+    <div className={className} style={style} onClick={onClick}>
       <div className="card-tl" style={{ color }}>
-        <span className="card-rank-text">{rankDisplay}</span>
-        <span className="card-suit-text">{suitSymbol}</span>
+        <span className="card-rank">{rankDisplay}</span>
+        <span className="card-suit">{suitSymbol}</span>
       </div>
-
-      {/* Center suit */}
-      <div className="card-suit-center" style={{ color }}>
+      <div className="card-center" style={{ color }}>
         {suitSymbol}
       </div>
-
-      {/* Bottom-right corner (rotated) */}
       <div className="card-br" style={{ color }}>
-        <span className="card-rank-text">{rankDisplay}</span>
-        <span className="card-suit-text">{suitSymbol}</span>
+        <span className="card-rank">{rankDisplay}</span>
+        <span className="card-suit">{suitSymbol}</span>
       </div>
     </div>
   );
 }
-

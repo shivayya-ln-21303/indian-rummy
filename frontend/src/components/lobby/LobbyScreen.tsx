@@ -1,79 +1,140 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import ErrorBanner from '../common/ErrorBanner';
+
+const SUITS = ['♠', '♥', '♦', '♣'];
 
 export default function LobbyScreen() {
   const { playerName, roomCode, setPlayerName, createRoom, joinRoom, errorMessage, clearError } = useGameStore();
   const [joinCode, setJoinCode] = useState('');
+  const shareUrl = useMemo(() => {
+    if (!roomCode) return '';
+    return `${window.location.origin}?room=${roomCode}`;
+  }, [roomCode]);
+
+  const handleCopy = async () => {
+    if (!roomCode) return;
+    try {
+      await navigator.clipboard.writeText(roomCode);
+    } catch {
+      // ignore clipboard failures
+    }
+  };
+
+  const handleShare = async () => {
+    if (!roomCode) return;
+    const text = `రమ్మీ పేకాటలో చేరండి — కోడ్: ${roomCode}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'రమ్మీ పేకాట', text, url: shareUrl });
+        return;
+      }
+      await navigator.clipboard.writeText(`${text} ${shareUrl}`.trim());
+    } catch {
+      // ignore share failures
+    }
+  };
 
   return (
-    <div className="lobby">
+    <div className="lobby-screen">
       {errorMessage && <ErrorBanner message={errorMessage} onClose={clearError} />}
 
-      <div className="lobby-logo">🃏</div>
-      <h1>రమ్మీ పేకాట</h1>
-      <p style={{ opacity: 0.75, fontSize: '0.95rem', fontWeight: 600 }}>4 మంది ఆడే పేకాట ఆట</p>
-
-      {/* Name input */}
-      <div className="lobby-card">
-        <h2>మీ పేరు</h2>
-        <input
-          className="input"
-          type="text"
-          placeholder="మీ పేరు టైప్ చేయండి…"
-          maxLength={20}
-          value={playerName}
-          onChange={(e) => setPlayerName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && createRoom()}
-        />
-      </div>
-
-      {/* Create room */}
-      <div className="lobby-card">
-        <h2>🎮 గది తయారు చేయండి</h2>
-        <p style={{ opacity: 0.72, fontSize: '0.88rem' }}>
-          కొత్త ఆట మొదలుపెట్టండి. కోడ్ స్నేహితులకు పంచండి.
-        </p>
-        <button className="btn btn-primary" onClick={createRoom} disabled={!playerName.trim()}>
-          + గది తయారు చేయండి
-        </button>
-        {roomCode && (
-          <div style={{ textAlign: 'center', marginTop: 8 }}>
-            <p style={{ fontSize: '0.8rem', opacity: 0.75 }}>ఈ కోడ్ పంచుకోండి:</p>
-            <div className="room-code-display" style={{ fontSize: '1.9rem', padding: '10px 22px', marginTop: 6 }}>
-              {roomCode}
-            </div>
-            <p style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: 8 }}>
-              ఇంకా 3 మంది కోసం వేచి ఉంది...
-            </p>
+      <div className="lobby-shell premium-panel slide-up">
+        <div className="lobby-hero">
+          <div className="suit-orbit" aria-hidden="true">
+            {SUITS.map((suit, index) => (
+              <span key={suit} className={`orbit-suit orbit-${index + 1}`}>{suit}</span>
+            ))}
+            <div className="hero-chip">🃏</div>
           </div>
-        )}
-      </div>
+          <div className="hero-copy">
+            <p className="eyebrow">ప్రీమియం మల్టీప్లేయర్ అనుభవం</p>
+            <h1>రమ్మీ పేకాట</h1>
+            <p className="hero-subtitle">స్నేహితులతో చీకటి-బంగారు స్టైల్లో ఆడే రమ్మీ టేబుల్</p>
+          </div>
+        </div>
 
-      <div className="divider">లేదా</div>
+        <div className="lobby-content">
+          <div className="input-card premium-panel-secondary">
+            <label className="field-label">మీ పేరు</label>
+            <div className="input-wrap">
+              <span className="input-icon">👤</span>
+              <input
+                className="input premium-input"
+                type="text"
+                placeholder="మీ పేరు టైప్ చేయండి…"
+                maxLength={20}
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && createRoom()}
+              />
+            </div>
+          </div>
 
-      {/* Join room */}
-      <div className="lobby-card">
-        <h2>🚪 గదిలో చేరండి</h2>
-        <input
-          className="input"
-          type="text"
-          placeholder="గది కోడ్ వేయండి (ఉదా: AB12CD)"
-          maxLength={6}
-          value={joinCode}
-          onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-          onKeyDown={(e) => e.key === 'Enter' && joinCode.length === 6 && joinRoom(joinCode)}
-          style={{ letterSpacing: '5px', textTransform: 'uppercase', fontFamily: 'monospace', fontSize: '1.2rem' }}
-        />
-        <button
-          className="btn btn-green"
-          onClick={() => joinRoom(joinCode)}
-          disabled={!playerName.trim() || joinCode.length !== 6}
-        >
-          గదిలో చేరండి →
-        </button>
+          <div className="lobby-dual premium-panel-secondary">
+            <section className="lobby-section">
+              <div className="section-heading">
+                <span className="section-icon">✨</span>
+                <div>
+                  <h2>కొత్త గది తయారు చేయండి</h2>
+                  <p>స్నేహితులకు కోడ్ పంపించి వెంటనే ఆట మొదలుపెట్టండి</p>
+                </div>
+              </div>
+
+              <button className="btn btn-gold btn-large" onClick={createRoom} disabled={!playerName.trim()}>
+                కొత్త గది తయారు చేయండి
+              </button>
+
+              {roomCode && (
+                <div className="room-code-panel glow-panel">
+                  <span className="mini-label">మీ గది కోడ్</span>
+                  <div className="premium-room-code">{roomCode}</div>
+                  <div className="room-code-actions">
+                    <button className="btn btn-secondary" onClick={handleCopy}>కాపీ చేయండి</button>
+                    <button className="btn btn-secondary" onClick={handleShare}>పంచుకోండి</button>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <div className="lobby-divider">
+              <span>లేదా</span>
+            </div>
+
+            <section className="lobby-section">
+              <div className="section-heading">
+                <span className="section-icon">🚪</span>
+                <div>
+                  <h2>గదిలో చేరండి</h2>
+                  <p>6 అక్షరాల కోడ్‌తో నేరుగా గేమ్ టేబుల్‌లోకి చేరండి</p>
+                </div>
+              </div>
+
+              <div className="input-wrap code-input-wrap">
+                <span className="input-icon">#</span>
+                <input
+                  className="input premium-input code-input"
+                  type="text"
+                  placeholder="AB12CD"
+                  maxLength={6}
+                  value={joinCode}
+                  autoCapitalize="characters"
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === 'Enter' && joinCode.length === 6 && joinRoom(joinCode)}
+                />
+              </div>
+
+              <button
+                className="btn btn-blue btn-large"
+                onClick={() => joinRoom(joinCode)}
+                disabled={!playerName.trim() || joinCode.length !== 6}
+              >
+                గదిలో చేరండి
+              </button>
+            </section>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
-

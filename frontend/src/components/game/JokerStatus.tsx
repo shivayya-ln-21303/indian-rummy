@@ -1,22 +1,19 @@
 import { useGameStore } from '../../store/gameStore';
 
 export default function JokerStatus() {
-  const { gameState } = useGameStore();
+  const { gameState, playerId } = useGameStore();
   if (!gameState) return null;
 
-  const unlocked = gameState.jokerUnlocked;
+  const myStatus = gameState.players.find((player) => player.playerId === playerId)?.jokerUnlocked ?? gameState.jokerUnlocked;
 
   return (
-    <div className="joker-status">
-      <div className={`joker-badge${unlocked ? ' active' : ''}`}>
-        {unlocked ? '🃏 జోకర్ చేతన్నది' : '🔒 జోకర్ లాక్'}
+    <div className={`joker-status-chip premium-panel-secondary ${myStatus ? 'active' : ''}`}>
+      <span className="joker-chip-card">🃏</span>
+      <div className="joker-chip-copy">
+        <span className="joker-chip-title">జోకర్ పేక</span>
+        <span className="joker-chip-state">{myStatus ? 'జోకర్ అన్‌లాక్' : 'జోకర్ లాక్'}</span>
       </div>
-      {unlocked && (
-        <div style={{ fontSize: '0.58rem', color: 'rgba(255,215,0,0.75)', textAlign: 'center', marginTop: 2 }}>
-          అడవి పేక వాడవచ్చు
-        </div>
-      )}
+      <span className={`mini-badge ${myStatus ? 'gold' : 'dark'}`}>{myStatus ? 'నా జోకర్ సిద్ధం' : 'నా జోకర్ లాక్'}</span>
     </div>
   );
 }
-
