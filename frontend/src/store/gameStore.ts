@@ -3,6 +3,45 @@ import type { Card, GameState, PlayerSummary, RoomStatus, WsResponse } from '../
 import { wsService, getWsUrl } from '../services/websocket.service';
 
 // ============================================================
+// Session persistence helpers
+// ============================================================
+
+const SESSION_KEY = 'rummy_session_v2';
+const NAME_KEY    = 'rummy_player_name';
+
+interface SavedSession {
+  playerId: string;
+  roomCode: string;
+  playerName: string;
+  isCreator: boolean;
+}
+
+function saveSession(data: SavedSession) {
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch { /* ignore */ }
+}
+
+function loadSession(): SavedSession | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw) as Partial<SavedSession>;
+    return (d?.playerId && d?.roomCode) ? (d as SavedSession) : null;
+  } catch { return null; }
+}
+
+function clearSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+}
+
+function savePlayerName(name: string) {
+  try { localStorage.setItem(NAME_KEY, name); } catch { /* ignore */ }
+}
+
+function loadPlayerName(): string {
+  try { return localStorage.getItem(NAME_KEY) ?? ''; } catch { return ''; }
+}
+
+// ============================================================
 // Store shape
 // ============================================================
 
@@ -12,6 +51,7 @@ interface GameStore {
   playerName: string;
   roomCode: string | null;
   isCreator: boolean;
+  isReconnecting: boolean;   // true while waiting for RECONNECTED after auto-reconnect
 
   // Game state
   gameState: GameState | null;
@@ -46,11 +86,12 @@ interface GameStore {
 // ============================================================
 
 export const useGameStore = create<GameStore>((set, get) => ({
-  // Initial state
+  // Initial state — restore playerName from localStorage immediately
   playerId: null,
-  playerName: '',
+  playerName: loadPlayerName(),
   roomCode: null,
   isCreator: false,
+  isReconnecting: false,
   gameState: null,
   selectedCards: [],
   pendingGroups: [],
@@ -62,7 +103,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // Setup
   // ---------------------------------------------------------------------------
 
-  setPlayerName: (name) => set({ playerName: name }),
+  setPlayerName: (name) => {
+    savePlayerName(name);
+    set({ playerName: name });
+  },
 
   connect: async () => {
     set({ connectionStatus: 'connecting' });
@@ -70,6 +114,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
       await wsService.connect(getWsUrl());
       set({ connectionStatus: 'connected' });
       registerHandlers(set, get);
+
+      // ── Auto-reconnect if a saved session exists ──
+      const saved = loadSession();
+      if (saved?.playerId && saved?.roomCode) {
+        // Restore identity pre-emptively so screens render correctly while waiting
+        set({
+          playerId:       saved.playerId,
+          roomCode:       saved.roomCode,
+          isCreator:      saved.isCreator ?? false,
+          isReconnecting: true,
+          playerName:     saved.playerName || get().playerName,
+        });
+        wsService.send('RECONNECT', { roomCode: saved.roomCode, playerId: saved.playerId });
+      }
     } catch {
       set({ connectionStatus: 'disconnected', errorMessage: 'Could not connect to server.' });
     }
@@ -153,6 +211,8 @@ function registerHandlers(
   wsService.on('ROOM_CREATED', (res: WsResponse) => {
     if (!res.success) { set({ errorMessage: res.error }); return; }
     const d = res.data as { roomCode: string; playerId: string; creatorId: string; gameState?: GameState };
+    const { playerName } = get();
+    saveSession({ playerId: d.playerId, roomCode: d.roomCode, playerName, isCreator: true });
     set({
       roomCode:  d.roomCode,
       playerId:  d.playerId,
@@ -175,11 +235,14 @@ function registerHandlers(
       players?: PlayerSummary[];
     };
     if (d.playerId) {
-      // This player just joined
+      // This player just joined — persist session
+      const { playerName } = get();
+      const isCreator = d.playerId === d.creatorId;
+      saveSession({ playerId: d.playerId, roomCode: d.roomCode ?? '', playerName, isCreator });
       set({
         playerId:  d.playerId,
         roomCode:  d.roomCode ?? get().roomCode,
-        isCreator: d.playerId === d.creatorId,
+        isCreator,
         gameState: d.gameState ?? get().gameState,
       });
     } else {
@@ -193,12 +256,28 @@ function registerHandlers(
   });
 
   wsService.on('RECONNECTED', (res: WsResponse) => {
-    if (!res.success) { set({ errorMessage: res.error }); return; }
+    if (!res.success) {
+      // Reconnect failed — session is stale, clear it and go to lobby
+      clearSession();
+      set({
+        isReconnecting: false,
+        playerId: null, roomCode: null, gameState: null, isCreator: false,
+        errorMessage: res.error ?? 'Session expired. Please rejoin.',
+      });
+      return;
+    }
     const d = res.data as { playerId: string; creatorId?: string; gameState: GameState };
+    const { playerName } = get();
+    const isCreator = d.playerId === (d.creatorId ?? d.gameState?.creatorId);
+    // Refresh saved session with latest state
+    saveSession({ playerId: d.playerId, roomCode: d.gameState.roomCode, playerName, isCreator });
     set({
-      playerId:  d.playerId,
-      isCreator: d.playerId === (d.creatorId ?? d.gameState?.creatorId),
-      gameState: d.gameState,
+      isReconnecting: false,
+      playerId:       d.playerId,
+      isCreator,
+      gameState:      d.gameState,
+      // Restore pending groups from server-side saved groups so grouping survives refresh
+      pendingGroups:  d.gameState.myGroups ?? [],
     });
   });
 
@@ -303,7 +382,6 @@ function registerHandlers(
     if (gs) {
       const myId = get().playerId;
       const isMe = d.playerId === myId;
-      // Update per-player jokerUnlocked flag in players list
       const updatedPlayers = gs.players.map(p =>
         p.playerId === d.playerId ? { ...p, jokerUnlocked: true } : p
       );
@@ -327,9 +405,11 @@ function registerHandlers(
     if (gs) {
       set({ gameState: { ...gs, status: 'FINISHED', winnerId: d.winnerId, winnerName: d.winnerName } });
     }
+    // Game over — clear session so next visit starts fresh
+    clearSession();
   });
 
-  wsService.on('TURN_TIMEOUT', (res: WsResponse) => {
+  wsService.on('TURN_TIMEOUT', (_res: WsResponse) => {
     set({ notification: 'సమయం అయిపోయింది — తదుపరి వంతు!' });
   });
 
@@ -338,6 +418,17 @@ function registerHandlers(
   });
 
   wsService.on('ERROR', (res: WsResponse) => {
+    const { isReconnecting } = get();
+    if (isReconnecting) {
+      // Auto-reconnect failed (room gone, player not found, etc.)
+      clearSession();
+      set({
+        isReconnecting: false,
+        playerId: null, roomCode: null, gameState: null, isCreator: false,
+        notification: 'Session expired — please rejoin.',
+      });
+      return;
+    }
     set({ errorMessage: res.error ?? 'An error occurred.' });
   });
 }

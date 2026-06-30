@@ -7,7 +7,10 @@ import WinnerDialog from './components/dialogs/WinnerDialog';
 import Notification from './components/common/Notification';
 
 export default function App() {
-  const { gameState, connectionStatus, connect, notification, clearNotification } = useGameStore();
+  const {
+    gameState, connectionStatus, isReconnecting,
+    connect, notification, clearNotification,
+  } = useGameStore();
 
   useEffect(() => {
     connect();
@@ -18,6 +21,7 @@ export default function App() {
     : gameState?.status ?? 'LOBBY';
 
   const renderScreen = () => {
+    // Connecting to server
     if (connectionStatus !== 'connected') {
       return (
         <div className="splash-screen">
@@ -26,6 +30,22 @@ export default function App() {
             <h1>రమ్మీ పేకాట</h1>
             <p className="connecting-text">
               {connectionStatus === 'connecting' ? 'అనుసంధానం అవుతోంది…' : 'మళ్ళీ అనుసంధానం అవుతోంది…'}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // Connected but waiting for RECONNECTED response
+    if (isReconnecting) {
+      return (
+        <div className="splash-screen">
+          <div className="splash-core premium-panel">
+            <div className="splash-logo" style={{ animation: 'rotateSlow 3s linear infinite' }}>🃏</div>
+            <h1>రమ్మీ పేకాట</h1>
+            <p className="connecting-text">గేమ్‌లోకి తిరిగి చేరుతున్నారు…</p>
+            <p style={{ fontSize: '0.8rem', opacity: 0.55, marginTop: 8 }}>
+              Rejoining your game…
             </p>
           </div>
         </div>
@@ -62,3 +82,4 @@ export default function App() {
     </div>
   );
 }
+
